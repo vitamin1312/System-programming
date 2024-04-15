@@ -1,4 +1,9 @@
+// NegrobovApp.cpp : This file contains the 'main' function. Program execution begins and ends there.
+//
+
 #include "stdafx.h"
+#include "framework.h"
+#include "NegrobovApp.h"
 
 #include "Message.h"
 #include "Session.h"
@@ -10,6 +15,11 @@
 #endif
 
 
+// The one and only application object
+
+CWinApp theApp;
+
+using namespace std;
 struct header
 {
 	int addr;
@@ -18,8 +28,6 @@ struct header
 
 __declspec(dllimport) std::string GetMessageFrom(header& h);
 
-CWinApp theApp;
-using namespace std;
 
 
 DWORD WINAPI startInThread(LPVOID _param)
@@ -49,47 +57,42 @@ DWORD WINAPI startInThread(LPVOID _param)
 	}
 	return 0;
 }
-
-int main()
+void start()
 {
-    HANDLE confirmEvent = ::CreateEvent(NULL, FALSE, FALSE, _T("ConfirmEvent"));
-    HANDLE startEvent = ::CreateEvent(NULL, FALSE, FALSE, _T("StartEvent"));
-    HANDLE stopEvent = ::CreateEvent(NULL, FALSE, FALSE, _T("CloseProcNegrobov"));
-	HANDLE sendEvent = ::CreateEvent(NULL, FALSE, FALSE, _T("SendEvent"));
-    HANDLE exitEvent = ::CreateEvent(NULL, FALSE, FALSE, _T("ExitProcNegrobov"));
+	HANDLE startEvent = ::CreateEvent(NULL, FALSE, FALSE, "StartEvent");
+	HANDLE confirmEvent = ::CreateEvent(NULL, FALSE, FALSE, "ConfirmEvent");
+	HANDLE stopEvent = ::CreateEvent(NULL, FALSE, FALSE, "CloseProcNegrobov");
+	HANDLE sendEvent = ::CreateEvent(NULL, FALSE, FALSE, "SendEvent");
+	HANDLE exitEvent = ::CreateEvent(NULL, FALSE, FALSE, "ExitProcNegrobov");
 
 	HANDLE events[4];
-	events[0] = exitEvent;
+	events[0] = startEvent;
 	events[1] = stopEvent;
-	events[2] = startEvent;
+	events[2] = exitEvent;
 	events[3] = sendEvent;
 
-	::SetEvent(confirmEvent);
 
 	std::vector<HANDLE> hThreads;
 	std::vector<Session*> sessions;
 
 	while (true)
 	{
-		int n = ::WaitForMultipleObjects(sizeof(events) / sizeof(HANDLE), events, FALSE, INFINITE) - WAIT_OBJECT_0;
-		switch (n)
+		DWORD dwWaitRes = ::WaitForMultipleObjects(sizeof(events) / sizeof(HANDLE), events, FALSE, INFINITE) - WAIT_OBJECT_0;
+
+		switch (dwWaitRes)
 		{
 		case 0:
-		{
-			for (int i{ 0 }; i < sessions.size(); ++i)
-			{
-				sessions[i]->addMessage(MT_CLOSE);
-				CloseHandle(hThreads[i]);
-			}
-			return 0;
-		}
+			sessions.push_back(new Session(hThreads.size() + 1));
+
+			hThreads.push_back(AfxBeginThread((AFX_THREADPROC)startInThread, (LPVOID)sessions.back(), THREAD_PRIORITY_HIGHEST));
+			break;
 
 		case 1:
-		{
+
 			if (!hThreads.size())
 			{
 				::SetEvent(confirmEvent);
-				return 0;
+				return;
 			}
 			sessions.back()->addMessage(MT_CLOSE);
 			sessions.pop_back();
@@ -99,17 +102,19 @@ int main()
 
 			break;
 
-		}
-
 		case 2:
-		{
-			sessions.push_back(new Session(hThreads.size() + 1));
-			hThreads.push_back(::CreateThread(NULL, 0, startInThread, (LPVOID)sessions.back(), 0, NULL));
-			break;
-		}
+
+			for (int i{ 0 }; i < sessions.size(); ++i)
+			{
+				sessions[i]->addMessage(MT_CLOSE);
+				::CloseHandle(hThreads[i]);
+			}
+			SetEvent(confirmEvent);
+			return;
 
 		case 3:
 		{
+
 			header h;
 			std::string message = GetMessageFrom(h);
 
@@ -133,12 +138,10 @@ int main()
 				}
 			break;
 		}
-
 		default:
 
 			std::cout << "There was an error" << std::endl;
-			std::cin;
-			return 0;
+			return;
 		}
 		::SetEvent(confirmEvent);
 	}
@@ -149,6 +152,33 @@ int main()
 	CloseHandle(startEvent);
 	CloseHandle(stopEvent);
 	CloseHandle(sendEvent);
+}
 
-	return 0;
+
+int main()
+{
+	int nRetCode = 0;
+
+	HMODULE hModule = ::GetModuleHandle(nullptr);
+
+	if (hModule != nullptr)
+	{
+
+		if (!AfxWinInit(hModule, nullptr, ::GetCommandLine(), 0))
+		{
+			wprintf(L"Fatal Error: MFC initialization failed\n");
+			nRetCode = 1;
+		}
+		else
+		{
+			start();
+		}
+	}
+	else
+	{
+		wprintf(L"Fatal Error: GetModuleHandle failed\n");
+		nRetCode = 1;
+	}
+
+	return nRetCode;
 }

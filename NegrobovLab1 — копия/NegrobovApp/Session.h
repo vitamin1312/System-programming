@@ -31,3 +31,4 @@ public:
 	void addMessage(MessageTypes messageType, const std::string& data = "");
 
 };
+#pragma once

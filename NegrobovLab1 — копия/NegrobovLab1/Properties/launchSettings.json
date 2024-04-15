@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "NegrobovLab1": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

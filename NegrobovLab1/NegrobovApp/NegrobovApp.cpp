@@ -1,4 +1,9 @@
+// NegrobovApp.cpp : This file contains the 'main' function. Program execution begins and ends there.
+//
+
 #include "stdafx.h"
+#include "framework.h"
+#include "NegrobovApp.h"
 
 #include "Message.h"
 #include "Session.h"
@@ -10,6 +15,11 @@
 #endif
 
 
+// The one and only application object
+
+CWinApp theApp;
+
+using namespace std;
 struct header
 {
 	int addr;
@@ -18,8 +28,6 @@ struct header
 
 __declspec(dllimport) std::string GetMessageFrom(header& h);
 
-CWinApp theApp;
-using namespace std;
 
 
 DWORD WINAPI startInThread(LPVOID _param)
@@ -52,11 +60,11 @@ DWORD WINAPI startInThread(LPVOID _param)
 
 int main()
 {
-    HANDLE confirmEvent = ::CreateEvent(NULL, FALSE, FALSE, _T("ConfirmEvent"));
-    HANDLE startEvent = ::CreateEvent(NULL, FALSE, FALSE, _T("StartEvent"));
-    HANDLE stopEvent = ::CreateEvent(NULL, FALSE, FALSE, _T("CloseProcNegrobov"));
+	HANDLE confirmEvent = ::CreateEvent(NULL, FALSE, FALSE, _T("ConfirmEvent"));
+	HANDLE startEvent = ::CreateEvent(NULL, FALSE, FALSE, _T("StartEvent"));
+	HANDLE stopEvent = ::CreateEvent(NULL, FALSE, FALSE, _T("CloseProcNegrobov"));
 	HANDLE sendEvent = ::CreateEvent(NULL, FALSE, FALSE, _T("SendEvent"));
-    HANDLE exitEvent = ::CreateEvent(NULL, FALSE, FALSE, _T("ExitProcNegrobov"));
+	HANDLE exitEvent = ::CreateEvent(NULL, FALSE, FALSE, _T("ExitProcNegrobov"));
 
 	HANDLE events[4];
 	events[0] = exitEvent;
